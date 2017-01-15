@@ -76,7 +76,7 @@ export default ({Service, Characteristic}) =>
     }
 
     dispatch(command){
-      return new Promise((resolve, reject) => exec(`${dispatchPath} ${this.ip} ${this.constructParameters(command)}`, (error, stdout) => error ? reject(error) : resolve(stdout)))
+      return new Promise((resolve, reject) => exec(`${dispatchPath} ${this.ip} ${this.constructParameters(command)}`, {timeout: 1000}, (error, stdout) => error ? reject(error) : resolve(stdout)))
     }
 
     refreshState({initial=false}={}){
