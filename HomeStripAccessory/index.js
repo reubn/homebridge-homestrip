@@ -1,5 +1,5 @@
 import {exec} from 'child_process'
-import Color from 'color'
+import tinycolor from 'tinycolor2'
 
 const dispatchPath = `${__dirname}/dispatch.py`
 
@@ -66,9 +66,9 @@ export default ({Service, Characteristic}) =>
     constructParameters({type, payload}){
       const conversions = {
         info: () => '-i',
-        power: payload => payload ? '--on' : '--off',
-        colour: ({brightness, h, s, l}) => {
-          const {r, g, b} = this.adjustColours(brightness, {h, s, l})
+        power: on => on ? '--on' : '--off',
+        colour: ({colour, brightness}) => {
+          const {r, g, b} = this.adjustColours({colour, brightness}).toRgb()
           return `-x ${this.setup} -c${r},${g},${b}`
         }
       }
@@ -85,14 +85,14 @@ export default ({Service, Characteristic}) =>
               console.log(response)
               const isOn = response.includes('ON')
               const [colourReturned, ...rgb] = /\((\d+?), (\d+?), (\d+?)\)/g.exec(response) || []
-              const [h, s, l] = Color.rgb(rgb)
+              const colour = tinycolor(rgb)
 
               this.state.on = isOn
 
               if(!colourReturned) return this.state
 
-              if(initial) this.state.colour.local = {h, s, l:50}
-              this.state.colour.remote = {h, s, l}
+              if(initial) this.state.colour.local = tinycolor({...colour.toHsl(), l: 50})
+              this.state.colour.remote = colour
 
               return this.state
             })
@@ -100,19 +100,16 @@ export default ({Service, Characteristic}) =>
 
     changeColourIfNeeded(){
       return this.refreshState()
-      .then(state => {
-        const {r: lr, g: lg, b: lb} = this.adjustColours(this.state.brightness, this.state.colour.local)
-        const {r: rr, g: rg, b: rb} = this.state.colour.remote
-
-        return !(lr === rr && lg === rg && lb === rb)
-        ? this.dispatch({type: 'colour', payload: Object.assign({}, this.state.colour.local, {brightness: this.state.brightness})})
+      .then(state =>
+        !tinycolor.equals(this.adjustColours({colour: state.colour.local, brightness: state.brightness}), state.colour.remote)
+        ? this.dispatch({type: 'colour', payload: {colour: state.colour.local, brightness: state.brightness}})
         : Promise.resolve()
-      })
+      )
     }
 
-    adjustColours(brightness, {h, s, l}){
-      const [r, g, b] = hslToRgb([h, s, l]).map(v => Math.round(v * 0.01 * brightness))
-      return {r, g, b}
+    adjustColours({colour, brightness}){
+      const {r, g, b} = colour.toRgb()
+      return tinycolor({r: Math.round(r * 0.01 * brightness), g: Math.round(g * 0.01 * brightness), b: Math.round(b * 0.01 * brightness)})
     }
 
     getPower(){
@@ -127,11 +124,11 @@ export default ({Service, Characteristic}) =>
 
     getHue(){
       return this.refreshState()
-      .then(({colour: {remote: {h}}}) => h)
+      .then(({colour: {remote}}) => remote.toHsl().h)
     }
 
     setHue(payload){
-      this.state.colour.local.h = payload
+      this.state.colour.local = tinycolor({...this.state.colour.local.toHsl(), h: payload})
       return this.changeColourIfNeeded()
     }
 
@@ -141,7 +138,7 @@ export default ({Service, Characteristic}) =>
     }
 
     setSaturation(payload){
-      this.state.colour.local.s = payload
+      this.state.colour.local = tinycolor({...this.state.colour.local.toHsl(), s: payload})
       return this.changeColourIfNeeded()
     }
 
