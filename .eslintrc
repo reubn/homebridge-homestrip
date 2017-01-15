@@ -55,6 +55,7 @@
           "after": true
         }
       }
-    }]
+    }],
+    "no-confusing-arrow": 0
   }
 }
