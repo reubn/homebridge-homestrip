@@ -1,6 +1,8 @@
 import {exec} from 'child_process'
 import tinycolor from 'tinycolor2'
 
+import colourCube from './colourCube'
+
 const dispatchPath = `${__dirname}/dispatch.py`
 
 export default ({Service, Characteristic}) =>
@@ -21,8 +23,8 @@ export default ({Service, Characteristic}) =>
       this.state = {
         on: null,
         colour: {
-          remote: {},
-          local: {}
+          remote: tinycolor(),
+          local: tinycolor()
         },
         brightness: 100
       }
@@ -36,29 +38,41 @@ export default ({Service, Characteristic}) =>
       .setCharacteristic(Characteristic.Model, this.model)
       .setCharacteristic(Characteristic.SerialNumber, this.serialNumber)
 
-      const lightbulbService = new Service.Lightbulb(this.name)
+      const staticService = new Service.Lightbulb('Static Colour')
 
-      lightbulbService
+      staticService
       .getCharacteristic(Characteristic.On)
       .on('get', callback => this.getPower().then(a => callback(null, a)))
       .on('set', (value, callback) => this.setPower(value).then(a => callback(null, a)))
 
-      lightbulbService
+      staticService
       .addCharacteristic(new Characteristic.Hue())
       .on('get', callback => this.getHue().then(a => callback(null, a)))
       .on('set', (value, callback) => this.setHue(value).then(a => callback(null, a)))
 
-      lightbulbService
+      staticService
       .addCharacteristic(new Characteristic.Saturation())
       .on('get', callback => this.getSaturation().then(a => callback(null, a)))
       .on('set', (value, callback) => this.setSaturation(value).then(a => callback(null, a)))
 
-      lightbulbService
+      staticService
       .addCharacteristic(new Characteristic.Brightness())
       .on('get', callback => this.getBrightness().then(a => callback(null, a)))
       .on('set', (value, callback) => this.setBrightness(value).then(a => callback(null, a)))
 
-      return [informationService, lightbulbService]
+      // const fadeService = new Service.Fan('Colour Fade')
+      //
+      // fadeService
+      // .getCharacteristic(Characteristic.On)
+      // .on('get', callback => this.getPower().then(a => callback(null, a)))
+      // .on('set', (value, callback) => this.setPower(value).then(a => callback(null, a)))
+      //
+      // fadeService
+      // .getCharacteristic(Characteristic.RotationSpeed)
+      // .on('get', callback => this.getBrightness().then(a => callback(null, a)))
+      // .on('set', (value, callback) => this.setBrightness(value).then(a => callback(null, a)))
+
+      return [informationService, staticService/*, fadeService*/]
     }
 
     indentify(a){a()}
@@ -66,9 +80,14 @@ export default ({Service, Characteristic}) =>
     constructParameters({type, payload}){
       const conversions = {
         info: () => '-i',
-        power: on => on ? '--on' : '--off',
-        colour: ({colour, brightness}) => {
-          const {r, g, b} = this.adjustColours({colour, brightness}).toRgb()
+        power: on => {
+          console.log('L ==>', on ? '🔆' : '❌️', '━━ Set OnOff State')
+          return on ? '--on' : '--off'
+        },
+        colour: ({colour}) => {
+          console.log('L ==>', colourCube(colour), '━━ Set Colour')
+
+          const {r, g, b} = colour.toRgb()
           return `-x ${this.setup} -c${r},${g},${b}`
         }
       }
@@ -76,19 +95,26 @@ export default ({Service, Characteristic}) =>
     }
 
     dispatch(command){
-      return new Promise((resolve, reject) => exec(`${dispatchPath} ${this.ip} ${this.constructParameters(command)}`, {timeout: 1000}, (error, stdout) => error ? reject(error) : resolve(stdout)))
+      return new Promise((resolve, reject) => exec(`${dispatchPath} ${this.ip} ${this.constructParameters(command)}`, {timeout: 3000}, (error, stdout) => error ? reject(error) : resolve(stdout)))
+      .catch(error => {
+        if(error.killed) return 'TIMEOUT'
+        console.error('Dispatch Error: ', error)
+        return 'ERROR'
+      })
     }
 
     refreshState({initial=false}={}){
       return this.dispatch({type: 'info'})
             .then(response => {
-              console.log(response)
-              const isOn = response.includes('ON')
-              const [colourReturned, ...rgb] = /\((\d+?), (\d+?), (\d+?)\)/g.exec(response) || []
-              const colour = tinycolor(rgb)
+              const on = response.includes('ON')
+              const [colourReturned, r, g, b] = /\((\d+?), (\d+?), (\d+?)\)/g.exec(response) || []
+              const colour = tinycolor({r, g, b})
 
-              this.state.on = isOn
+              console.log(on ? '🔆' : '❌', '<== R ┳')
+              console.log('        ┣━━ Update from Remote')
+              console.log(colourReturned ? colourCube(colour) : '', '<== R ┻')
 
+              this.state.on = on
               if(!colourReturned) return this.state
 
               if(initial) this.state.colour.local = tinycolor({...colour.toHsl(), l: 50})
@@ -100,11 +126,16 @@ export default ({Service, Characteristic}) =>
 
     changeColourIfNeeded(){
       return this.refreshState()
-      .then(state =>
-        !tinycolor.equals(this.adjustColours({colour: state.colour.local, brightness: state.brightness}), state.colour.remote)
-        ? this.dispatch({type: 'colour', payload: {colour: state.colour.local, brightness: state.brightness}})
+      .then(state => {
+        const adjustedColour = this.adjustColours({colour: state.colour.local, brightness: state.brightness})
+        const needToChange = !tinycolor.equals(adjustedColour, state.colour.remote)
+
+        console.log(colourCube(adjustedColour), needToChange ? '!==' : '===', colourCube(state.colour.remote), '━━ Duplicate Check')
+
+        return needToChange
+        ? this.dispatch({type: 'colour', payload: {colour: adjustedColour}}).then(() => this.refreshState().then(() => console.log('AFTER')))
         : Promise.resolve()
-      )
+      })
     }
 
     adjustColours({colour, brightness}){
@@ -123,8 +154,9 @@ export default ({Service, Characteristic}) =>
     }
 
     getHue(){
-      return this.refreshState()
-      .then(({colour: {remote}}) => remote.toHsl().h)
+      // return this.refreshState()
+      // .then(({colour: {remote}}) => remote.toHsl().h)
+      return Promise.resolve(this.state.colour.remote.toHsl().h)
     }
 
     setHue(payload){
@@ -133,8 +165,9 @@ export default ({Service, Characteristic}) =>
     }
 
     getSaturation(){
-      return this.refreshState()
-      .then(({colour: {remote: {s}}}) => s)
+      // return this.refreshState()
+      // .then(({colour: {remote: {s}}}) => s)
+      return Promise.resolve(this.state.colour.remote.toHsl().s)
     }
 
     setSaturation(payload){
@@ -143,8 +176,9 @@ export default ({Service, Characteristic}) =>
     }
 
     getBrightness(){
-      return this.refreshState()
-      .then(({brightness}) => brightness)
+      // return this.refreshState()
+      // .then(({brightness}) => brightness)
+      return Promise.resolve(this.state.brightness)
     }
 
     setBrightness(payload){
