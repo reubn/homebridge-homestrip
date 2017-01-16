@@ -7,6 +7,7 @@
   "license": "MIT",
   "dependencies": {
     "babel-register": "^6.18.0",
+    "promise-queue": "^2.2.3",
     "tinycolor2": "^1.4.1"
   },
   "keywords": [

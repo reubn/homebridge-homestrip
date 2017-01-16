@@ -1,5 +1,6 @@
 import {exec} from 'child_process'
 import tinycolor from 'tinycolor2'
+import Queue from 'promise-queue'
 
 import colourCube from './colourCube'
 
@@ -19,6 +20,8 @@ export default ({Service, Characteristic}) =>
       this.manufacturer = manufacturer
       this.model = model
       this.serialNumber = serialNumber
+
+      this.queue = new Queue(1, Infinity)
 
       this.state = {
         on: null,
