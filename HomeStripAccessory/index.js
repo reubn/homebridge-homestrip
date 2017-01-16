@@ -40,12 +40,17 @@ export default ({Service, Characteristic}) =>
     }
 
     getServices(){
-      const wrap = handler => (a, b) => {
+      const wrap = (handler, name='misc') => (a, b) => {
         const [callback, value] = typeof a === 'function' ? [a, b] : [b, a]
-        this.queue.add(() =>
-          handler.call(this, value)
-          .then(res => callback(null, res))
+        this.queue.add(() => {
+          console.log(`━━━━━━━━━━━━━━━━━━━━${name.toUpperCase()}━━━━━━━━━━━━━━━━━━━━`)
+          return handler.call(this, value)
+          .then(res => {
+            console.log(`━━━━━━━━━━━━━━━━━━━━END ${name.toUpperCase()}━━━━━━━━━━━━━━━━━━━━`)
+            callback(null, res)
+          })
           .catch(error => callback(error))
+        }
         )
       }
 
@@ -58,23 +63,23 @@ export default ({Service, Characteristic}) =>
 
       staticService
       .getCharacteristic(Characteristic.On)
-      .on('get', wrap(this.getPower))
-      .on('set', wrap(this.setPower))
+      .on('get', wrap(this.getPower, 'get power'))
+      .on('set', wrap(this.setPower, 'set power'))
 
       staticService
       .addCharacteristic(new Characteristic.Hue())
-      .on('get', wrap(this.getHue))
-      .on('set', wrap(this.setHue))
+      .on('get', wrap(this.getHue, 'get hue'))
+      .on('set', wrap(this.setHue, 'set hue'))
 
       staticService
       .addCharacteristic(new Characteristic.Saturation())
-      .on('get', wrap(this.getSaturation))
-      .on('set', wrap(this.setSaturation))
+      .on('get', wrap(this.getSaturation, 'get saturation'))
+      .on('set', wrap(this.setSaturation, 'set saturation'))
 
       staticService
       .addCharacteristic(new Characteristic.Brightness())
-      .on('get', wrap(this.getBrightness))
-      .on('set', wrap(this.setBrightness))
+      .on('get', wrap(this.getBrightness, 'get brightness'))
+      .on('set', wrap(this.setBrightness, 'set brightness'))
 
       // const fadeService = new Service.Fan('Colour Fade')
       //
@@ -175,58 +180,42 @@ export default ({Service, Characteristic}) =>
     }
 
     getPower(){
-      console.log('--------------------GET POWER--------------------')
       return this.refreshState()
       .then(({remote: {on}}) => on)
-      .then(() => console.log('--------------------END GET POWER--------------------'))
     }
 
     setPower(payload){
-      console.log('--------------------SET POWER--------------------', payload)
       this.state.local.on = !!payload
       return this.changePowerIfNeeded()
-      .then(() => console.log('--------------------END SET POWER--------------------'))
     }
 
     getHue(){
-      console.log('--------------------GET HUE--------------------')
       return this.refreshState()
       .then(({remote: {colour}}) => colour.toHsl().h)
-      .then(() => console.log('--------------------END GET HUE--------------------'))
     }
 
     setHue(payload){
-      console.log('--------------------SET HUE--------------------', payload)
       this.state.local.colour = tinycolor({...this.state.local.colour.toHsl(), h: payload})
       return this.changeColourIfNeeded()
-      .then(() => console.log('--------------------END SET HUE--------------------'))
     }
 
     getSaturation(){
-      console.log('--------------------GET SATURATION--------------------')
       return this.refreshState()
       .then(({remote: {colour}}) => colour.toHsl().s)
-      .then(() => console.log('--------------------END GET SATURATION--------------------'))
     }
 
     setSaturation(payload){
-      console.log('--------------------SET SATURATION--------------------', payload)
       this.state.local.colour = tinycolor({...this.state.local.colour.toHsl(), s: payload})
       return this.changeColourIfNeeded()
-      .then(() => console.log('--------------------END SET SATURATION--------------------'))
     }
 
     getBrightness(){
-      console.log('--------------------GET BRIGHTNESS--------------------')
       return this.refreshState()
       .then(({brightness}) => brightness)
-      .then(() => console.log('--------------------END GET BRIGHTNESS--------------------'))
     }
 
     setBrightness(payload){
-      console.log('--------------------SET BRIGHTNESS--------------------', payload)
       this.state.brightness = payload
       return this.changeColourIfNeeded()
-      .then(() => console.log('--------------------END SET BRIGHTNESS--------------------'))
     }
   }
