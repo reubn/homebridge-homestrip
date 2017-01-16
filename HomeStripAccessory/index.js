@@ -21,7 +21,7 @@ export default ({Service, Characteristic}) =>
       this.model = model
       this.serialNumber = serialNumber
 
-      this.queue = new Queue(1, Infinity)
+      this.queue = new Queue(1, 5)
 
       this.state = {
         on: null,
@@ -36,6 +36,15 @@ export default ({Service, Characteristic}) =>
     }
 
     getServices(){
+      const wrap = handler => (a, b) => {
+        const [callback, value] = typeof a === 'function' ? [a, b] : [b, a]
+        this.queue.add(() =>
+          handler.call(this, value)
+          .then(res => callback(null, res))
+          .catch(error => callback(error))
+        )
+      }
+
       const informationService = new Service.AccessoryInformation()
       .setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
       .setCharacteristic(Characteristic.Model, this.model)
@@ -45,23 +54,23 @@ export default ({Service, Characteristic}) =>
 
       staticService
       .getCharacteristic(Characteristic.On)
-      .on('get', callback => this.getPower().then(a => callback(null, a)))
-      .on('set', (value, callback) => this.setPower(value).then(a => callback(null, a)))
+      .on('get', wrap(this.getPower))
+      .on('set', wrap(this.setPower))
 
       staticService
       .addCharacteristic(new Characteristic.Hue())
-      .on('get', callback => this.getHue().then(a => callback(null, a)))
-      .on('set', (value, callback) => this.setHue(value).then(a => callback(null, a)))
+      .on('get', wrap(this.getHue))
+      .on('set', wrap(this.setHue))
 
       staticService
       .addCharacteristic(new Characteristic.Saturation())
-      .on('get', callback => this.getSaturation().then(a => callback(null, a)))
-      .on('set', (value, callback) => this.setSaturation(value).then(a => callback(null, a)))
+      .on('get', wrap(this.getSaturation))
+      .on('set', wrap(this.setSaturation))
 
       staticService
       .addCharacteristic(new Characteristic.Brightness())
-      .on('get', callback => this.getBrightness().then(a => callback(null, a)))
-      .on('set', (value, callback) => this.setBrightness(value).then(a => callback(null, a)))
+      .on('get', wrap(this.getBrightness))
+      .on('set', wrap(this.setBrightness))
 
       // const fadeService = new Service.Fan('Colour Fade')
       //
