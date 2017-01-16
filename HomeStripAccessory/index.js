@@ -124,7 +124,7 @@ export default ({Service, Characteristic}) =>
 
               console.log(on ? '🔆' : '❌', '<== R ┳')
               console.log('        ┣━━ Update from Remote')
-              console.log(colourReturned ? colourCube(colour) : '', '<== R ┻')
+              console.log(colourReturned ? colourCube(colour) : '?', '<== R ┻')
 
               this.state.on = on
               if(!colourReturned) return this.state
@@ -145,7 +145,8 @@ export default ({Service, Characteristic}) =>
         console.log(colourCube(adjustedColour), needToChange ? '!==' : '===', colourCube(state.colour.remote), '━━ Duplicate Check')
 
         return needToChange
-        ? this.dispatch({type: 'colour', payload: {colour: adjustedColour}}).then(() => this.refreshState().then(() => console.log('AFTER')))
+        ? this.dispatch({type: 'colour', payload: {colour: adjustedColour}})
+          .then(() => this.refreshState())
         : Promise.resolve()
       })
     }
@@ -156,45 +157,58 @@ export default ({Service, Characteristic}) =>
     }
 
     getPower(){
+      console.log('--------------------GET POWER--------------------')
       return this.refreshState()
       .then(({on}) => on)
+      .then(() => console.log('--------------------END GET POWER--------------------'))
     }
 
     setPower(payload){
+      console.log('--------------------SET POWER--------------------', payload)
       return this.dispatch({type: 'power', payload})
       .then(() => this.refreshState())
+      .then(() => console.log('--------------------END SET POWER--------------------'))
     }
 
     getHue(){
-      // return this.refreshState()
-      // .then(({colour: {remote}}) => remote.toHsl().h)
-      return Promise.resolve(this.state.colour.remote.toHsl().h)
+      console.log('--------------------GET HUE--------------------')
+      return this.refreshState()
+      .then(({colour: {remote}}) => remote.toHsl().h)
+      .then(() => console.log('--------------------END GET HUE--------------------'))
     }
 
     setHue(payload){
+      console.log('--------------------SET HUE--------------------', payload)
       this.state.colour.local = tinycolor({...this.state.colour.local.toHsl(), h: payload})
       return this.changeColourIfNeeded()
+      .then(() => console.log('--------------------END SET HUE--------------------'))
     }
 
     getSaturation(){
-      // return this.refreshState()
-      // .then(({colour: {remote: {s}}}) => s)
-      return Promise.resolve(this.state.colour.remote.toHsl().s)
+      console.log('--------------------GET SATURATION--------------------')
+      return this.refreshState()
+      .then(({colour: {remote: {s}}}) => s)
+      .then(() => console.log('--------------------END GET SATURATION--------------------'))
     }
 
     setSaturation(payload){
+      console.log('--------------------SET SATURATION--------------------', payload)
       this.state.colour.local = tinycolor({...this.state.colour.local.toHsl(), s: payload})
       return this.changeColourIfNeeded()
+      .then(() => console.log('--------------------END SET SATURATION--------------------'))
     }
 
     getBrightness(){
-      // return this.refreshState()
-      // .then(({brightness}) => brightness)
-      return Promise.resolve(this.state.brightness)
+      console.log('--------------------GET BRIGHTNESS--------------------')
+      return this.refreshState()
+      .then(({brightness}) => brightness)
+      .then(() => console.log('--------------------END GET BRIGHTNESS--------------------'))
     }
 
     setBrightness(payload){
+      console.log('--------------------SET BRIGHTNESS--------------------', payload)
       this.state.brightness = payload
       return this.changeColourIfNeeded()
+      .then(() => console.log('--------------------END SET BRIGHTNESS--------------------'))
     }
   }
