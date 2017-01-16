@@ -43,10 +43,13 @@ export default ({Service, Characteristic}) =>
       const wrap = (handler, name='misc') => (a, b) => {
         const [callback, value] = typeof a === 'function' ? [a, b] : [b, a]
         this.queue.add(() => {
-          console.log(`━━━━━━━━━━━━━━━━━━━━${name.toUpperCase()}━━━━━━━━━━━━━━━━━━━━`)
+          console.log(`┏━━━━━━━━━━━━━━━━━━┫${name.toUpperCase()}┣━━━━━━━━━━━━━━━━━━┓`)
+          console.log('')
           return handler.call(this, value)
           .then(res => {
-            console.log(`━━━━━━━━━━━━━━━━━━━━END ${name.toUpperCase()}━━━━━━━━━━━━━━━━━━━━`)
+            console.log('')
+            console.log(`┗━━━━━━━━━━━━━━━━┫END ${name.toUpperCase()}┣━━━━━━━━━━━━━━━━┛`)
+            console.log('')
             callback(null, res)
           })
           .catch(error => callback(error))
