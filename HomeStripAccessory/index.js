@@ -139,6 +139,19 @@ export default ({Service, Characteristic}) =>
             })
     }
 
+    changePowerIfNeeded(){
+      return this.refreshState()
+      .then(state => {
+        const needToChange = state.local.on !== state.remote.on
+
+
+        return needToChange
+        ? this.dispatch({type: 'power', payload: state.local.on})
+          .then(() => this.refreshState())
+        : Promise.resolve()
+      })
+    }
+
     changeColourIfNeeded(){
       return this.refreshState()
       .then(state => {
@@ -168,8 +181,8 @@ export default ({Service, Characteristic}) =>
 
     setPower(payload){
       console.log('--------------------SET POWER--------------------', payload)
-      return this.dispatch({type: 'power', payload})
-      .then(() => this.refreshState())
+      this.state.local.on = !!payload
+      return this.changePowerIfNeeded()
       .then(() => console.log('--------------------END SET POWER--------------------'))
     }
 
