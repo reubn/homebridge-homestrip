@@ -3,6 +3,7 @@ import tinycolor from 'tinycolor2'
 import Queue from 'promise-queue'
 
 import colourCube from './colourCube'
+import onOffIndicator from './onOffIndicator'
 
 const dispatchPath = `${__dirname}/dispatch.py`
 
@@ -125,7 +126,7 @@ export default ({Service, Characteristic}) =>
               const [colourReturned, r, g, b] = /\((\d+?), (\d+?), (\d+?)\)/g.exec(response) || []
               const colour = tinycolor({r, g, b})
 
-              console.log(on ? '🔆' : '❌', '<== R ┳')
+              console.log(onOffIndicator(on), '<== R ┳')
               console.log('        ┣━━ Update from Remote')
               console.log(colourReturned ? colourCube(colour) : '?', '<== R ┻')
 
@@ -144,6 +145,7 @@ export default ({Service, Characteristic}) =>
       .then(state => {
         const needToChange = state.local.on !== state.remote.on
 
+        console.log(onOffIndicator(state.local.on), needToChange ? '!==' : '===', onOffIndicator(state.remote.on), '━━ Duplicate Check')
 
         return needToChange
         ? this.dispatch({type: 'power', payload: state.local.on})
