@@ -24,10 +24,13 @@ export default ({Service, Characteristic}) =>
       this.queue = new Queue(1, 5)
 
       this.state = {
-        on: null,
-        colour: {
-          remote: tinycolor(),
-          local: tinycolor()
+        local: {
+          on: null,
+          colour: tinycolor()
+        },
+        remote: {
+          on: null,
+          colour: tinycolor()
         },
         brightness: 100
       }
@@ -126,11 +129,11 @@ export default ({Service, Characteristic}) =>
               console.log('        ┣━━ Update from Remote')
               console.log(colourReturned ? colourCube(colour) : '?', '<== R ┻')
 
-              this.state.on = on
+              this.state.remote.on = on
               if(!colourReturned) return this.state
 
-              if(initial) this.state.colour.local = tinycolor({...colour.toHsl(), l: 50})
-              this.state.colour.remote = colour
+              if(initial) this.state.local.colour = tinycolor({...colour.toHsl(), l: 50})
+              this.state.remote.colour = colour
 
               return this.state
             })
@@ -139,10 +142,10 @@ export default ({Service, Characteristic}) =>
     changeColourIfNeeded(){
       return this.refreshState()
       .then(state => {
-        const adjustedColour = this.adjustColours({colour: state.colour.local, brightness: state.brightness})
-        const needToChange = !tinycolor.equals(adjustedColour, state.colour.remote)
+        const adjustedColour = this.adjustColours({colour: state.local.colour, brightness: state.brightness})
+        const needToChange = !tinycolor.equals(adjustedColour, state.remote.colour)
 
-        console.log(colourCube(adjustedColour), needToChange ? '!==' : '===', colourCube(state.colour.remote), '━━ Duplicate Check')
+        console.log(colourCube(adjustedColour), needToChange ? '!==' : '===', colourCube(state.remote.colour), '━━ Duplicate Check')
 
         return needToChange
         ? this.dispatch({type: 'colour', payload: {colour: adjustedColour}})
@@ -159,7 +162,7 @@ export default ({Service, Characteristic}) =>
     getPower(){
       console.log('--------------------GET POWER--------------------')
       return this.refreshState()
-      .then(({on}) => on)
+      .then(({remote: {on}}) => on)
       .then(() => console.log('--------------------END GET POWER--------------------'))
     }
 
@@ -173,13 +176,13 @@ export default ({Service, Characteristic}) =>
     getHue(){
       console.log('--------------------GET HUE--------------------')
       return this.refreshState()
-      .then(({colour: {remote}}) => remote.toHsl().h)
+      .then(({remote: {colour}}) => colour.toHsl().h)
       .then(() => console.log('--------------------END GET HUE--------------------'))
     }
 
     setHue(payload){
       console.log('--------------------SET HUE--------------------', payload)
-      this.state.colour.local = tinycolor({...this.state.colour.local.toHsl(), h: payload})
+      this.state.local.colour = tinycolor({...this.state.local.colour.toHsl(), h: payload})
       return this.changeColourIfNeeded()
       .then(() => console.log('--------------------END SET HUE--------------------'))
     }
@@ -187,13 +190,13 @@ export default ({Service, Characteristic}) =>
     getSaturation(){
       console.log('--------------------GET SATURATION--------------------')
       return this.refreshState()
-      .then(({colour: {remote: {s}}}) => s)
+      .then(({remote: {colour}}) => colour.toHsl().s)
       .then(() => console.log('--------------------END GET SATURATION--------------------'))
     }
 
     setSaturation(payload){
       console.log('--------------------SET SATURATION--------------------', payload)
-      this.state.colour.local = tinycolor({...this.state.colour.local.toHsl(), s: payload})
+      this.state.local.colour = tinycolor({...this.state.local.colour.toHsl(), s: payload})
       return this.changeColourIfNeeded()
       .then(() => console.log('--------------------END SET SATURATION--------------------'))
     }
