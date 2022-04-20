@@ -3,7 +3,7 @@
   "version": "0.0.2",
   "description": "Homebridge LED Controller",
   "main": "index.js",
-  "author": "Reuben Eggar",
+  "author": "Reuben",
   "license": "MIT",
   "dependencies": {
     "babel-register": "^6.18.0",
